@@ -42,7 +42,7 @@ for (const model of models) {
 }
 
 modelSelect.addEventListener("change", (e) => {
-  engine.switchModel(e.target.value);
+  engine.switchModel(e.target.value).catch(err => console.error("Model switch failed:", err));
 });
 
 resetButton.addEventListener("click", () => engine.reset());

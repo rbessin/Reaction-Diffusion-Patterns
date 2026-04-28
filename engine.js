@@ -104,10 +104,11 @@ export async function switchModel(modelId) {
   currentParams = Object.fromEntries(activeModel.params.map(p => [p.id, p.default]));
 
   if (!computePipelines[modelId]) {
+    const requestedId = modelId;
     const r = await fetch(activeModel.shaderUrl);
     if (!r.ok) throw new Error(`Failed to load shader: ${activeModel.shaderUrl}`);
     const code = await r.text();
-    if (activeModel.id !== modelId) return; // superseded by a later switch
+    if (activeModel.id !== requestedId) return; // superseded by a later switch
     const module = device.createShaderModule({ code });
     computePipelines[modelId] = device.createComputePipeline({
       layout: pipelineLayout,
