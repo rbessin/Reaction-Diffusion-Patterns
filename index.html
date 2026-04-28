@@ -4,9 +4,106 @@
   <head>
     <meta charset="utf-8" />
     <title>Reaction Diffusion Patterns</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Arial, sans-serif;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #10131a;
+        color: #f3f6ff;
+      }
+
+      .app {
+        display: grid;
+        gap: 1rem;
+        padding: 1.25rem;
+      }
+
+      canvas {
+        border: 1px solid #2d3444;
+        background: #0b0f17;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+      }
+
+      .controls {
+        display: grid;
+        gap: 0.75rem;
+        padding: 1rem;
+        border: 1px solid #2d3444;
+        border-radius: 0.75rem;
+        background: rgba(19, 24, 34, 0.92);
+      }
+
+      .control-row {
+        display: grid;
+        gap: 0.35rem;
+      }
+
+      .control-label {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        font-size: 0.95rem;
+      }
+
+      input[type="range"] {
+        width: 100%;
+      }
+
+      button {
+        width: fit-content;
+        padding: 0.55rem 0.85rem;
+        border: 1px solid #56627a;
+        border-radius: 0.5rem;
+        background: #1b2331;
+        color: inherit;
+        cursor: pointer;
+      }
+    </style>
   </head>
   <body>
-    <canvas width="512" height="512"></canvas>
+    <main class="app">
+      <canvas width="512" height="512"></canvas>
+      <section class="controls">
+        <div class="control-row">
+          <label class="control-label" for="feed-rate">
+            <span>Feed Rate</span>
+            <span id="feed-rate-value">0.0367</span>
+          </label>
+          <input
+            id="feed-rate"
+            type="range"
+            min="0.01"
+            max="0.09"
+            step="0.0005"
+            value="0.0367"
+          />
+        </div>
+        <div class="control-row">
+          <label class="control-label" for="kill-rate">
+            <span>Kill Rate</span>
+            <span id="kill-rate-value">0.0649</span>
+          </label>
+          <input
+            id="kill-rate"
+            type="range"
+            min="0.03"
+            max="0.07"
+            step="0.0005"
+            value="0.0649"
+          />
+        </div>
+        <button id="reset-pattern" type="button">Reset Pattern</button>
+      </section>
+    </main>
     <script type="module" src="main.js"></script>
   </body>
 </html>

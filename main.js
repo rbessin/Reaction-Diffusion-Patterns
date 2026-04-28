@@ -1,9 +1,18 @@
-const GRID_SIZE = 128;
-const UPDATE_INTERVAL = 200; // Default update to every 200ms (5 times/sec)
-let step = 0; // Track how many simulation steps have been run
+const GRID_SIZE = 512;
 const WORKGROUP_SIZE = 8;
+const SIMULATION_STEPS_PER_FRAME = 4;
+const DIFFUSION_A = 1.0;
+const DIFFUSION_B = 0.5;
+const DELTA_TIME = 1.0;
+const DEFAULT_FEED = 0.0367;
+const DEFAULT_KILL = 0.0649;
 
 const canvas = document.querySelector("canvas");
+const feedRateInput = document.querySelector("#feed-rate");
+const killRateInput = document.querySelector("#kill-rate");
+const feedRateValue = document.querySelector("#feed-rate-value");
+const killRateValue = document.querySelector("#kill-rate-value");
+const resetButton = document.querySelector("#reset-pattern");
 if (!navigator.gpu) {
   throw new Error("WebGPU is not supported on this browser.");
 }
@@ -18,21 +27,31 @@ const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
 context.configure({
   device,
   format: canvasFormat,
+  alphaMode: "opaque",
 });
 
 const vertices = new Float32Array([
   // x,y pairs for two triangles that make up a square
-  -0.8, -0.8, 0.8, -0.8, 0.8, 0.8, -0.8, -0.8, 0.8, 0.8, -0.8, 0.8,
+  -1, -1, 1, -1, 1, 1, -1, -1, 1, 1, -1, 1,
 ]);
 
-// Create a uniform buffer that describes the grid.
-const uniformArray = new Float32Array([GRID_SIZE, GRID_SIZE]);
+const simulationSettings = new Float32Array([
+  GRID_SIZE,
+  GRID_SIZE,
+  DEFAULT_FEED,
+  DEFAULT_KILL,
+  DIFFUSION_A,
+  DIFFUSION_B,
+  DELTA_TIME,
+  0,
+]);
+
 const uniformBuffer = device.createBuffer({
-  label: "Grid Uniforms",
-  size: uniformArray.byteLength,
+  label: "Simulation Uniforms",
+  size: simulationSettings.byteLength,
   usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
 });
-device.queue.writeBuffer(uniformBuffer, 0, uniformArray);
+device.queue.writeBuffer(uniformBuffer, 0, simulationSettings);
 
 const vertexBuffer = device.createBuffer({
   label: "Cell vertices",
@@ -41,8 +60,8 @@ const vertexBuffer = device.createBuffer({
 });
 device.queue.writeBuffer(vertexBuffer, /*bufferOffset=*/ 0, vertices);
 
-// Create an array and storage buffer to hold the active state of each cell.
-const cellStateArray = new Uint32Array(GRID_SIZE * GRID_SIZE);
+// Each cell stores the concentrations of chemicals A and B.
+const cellStateArray = new Float32Array(GRID_SIZE * GRID_SIZE * 2);
 const cellStateStorage = [
   device.createBuffer({
     label: "Cell State A",
@@ -55,10 +74,33 @@ const cellStateStorage = [
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   }),
 ];
-for (let i = 0; i < cellStateArray.length; ++i) {
-  cellStateArray[i] = Math.random() > 0.6 ? 1 : 0;
+
+function seedPattern() {
+  for (let y = 0; y < GRID_SIZE; y++) {
+    for (let x = 0; x < GRID_SIZE; x++) {
+      const cellOffset = (y * GRID_SIZE + x) * 2;
+      cellStateArray[cellOffset] = 1;
+      cellStateArray[cellOffset + 1] = 0;
+    }
+  }
+
+  const center = GRID_SIZE / 2;
+  const seedRadius = Math.max(6, Math.floor(GRID_SIZE / 8));
+
+  for (let y = center - seedRadius; y < center + seedRadius; y++) {
+    for (let x = center - seedRadius; x < center + seedRadius; x++) {
+      const jitteredB = 1.0;
+      const cellOffset = (y * GRID_SIZE + x) * 2;
+      cellStateArray[cellOffset] = 0.0;
+      cellStateArray[cellOffset + 1] = jitteredB;
+    }
+  }
+
+  device.queue.writeBuffer(cellStateStorage[0], 0, cellStateArray);
+  device.queue.writeBuffer(cellStateStorage[1], 0, cellStateArray);
 }
-device.queue.writeBuffer(cellStateStorage[0], 0, cellStateArray);
+
+seedPattern();
 
 const shaderCode = await fetch("shaders/cell.wgsl").then((r) => r.text());
 const cellShaderModule = device.createShaderModule({
@@ -180,17 +222,43 @@ const simulationPipeline = device.createComputePipeline({
   },
 });
 
+let step = 0;
+
+function syncControls() {
+  feedRateValue.textContent = Number(simulationSettings[2]).toFixed(4);
+  killRateValue.textContent = Number(simulationSettings[3]).toFixed(4);
+  device.queue.writeBuffer(uniformBuffer, 0, simulationSettings);
+}
+
+feedRateInput.addEventListener("input", (event) => {
+  simulationSettings[2] = Number(event.target.value);
+  syncControls();
+});
+
+killRateInput.addEventListener("input", (event) => {
+  simulationSettings[3] = Number(event.target.value);
+  syncControls();
+});
+
+resetButton.addEventListener("click", () => {
+  step = 0;
+  seedPattern();
+});
+
+syncControls();
+
 function updateGrid() {
   const encoder = device.createCommandEncoder();
-
-  // Start a compute pass
-  const computePass = encoder.beginComputePass();
-  computePass.setPipeline(simulationPipeline);
-  computePass.setBindGroup(0, bindGroups[step % 2]);
   const workgroupCount = Math.ceil(GRID_SIZE / WORKGROUP_SIZE);
-  computePass.dispatchWorkgroups(workgroupCount, workgroupCount);
-  computePass.end();
-  step++; // Increment the step count
+
+  for (let i = 0; i < SIMULATION_STEPS_PER_FRAME; i++) {
+    const computePass = encoder.beginComputePass();
+    computePass.setPipeline(simulationPipeline);
+    computePass.setBindGroup(0, bindGroups[step % 2]);
+    computePass.dispatchWorkgroups(workgroupCount, workgroupCount);
+    computePass.end();
+    step++;
+  }
 
   // Start a render pass
   const pass = encoder.beginRenderPass({
@@ -198,7 +266,7 @@ function updateGrid() {
       {
         view: context.getCurrentTexture().createView(),
         loadOp: "clear",
-        clearValue: { r: 0, g: 0, b: 0.4, a: 1.0 },
+        clearValue: { r: 0, g: 0, b: 0, a: 1.0 },
         storeOp: "store",
       },
     ],
@@ -213,7 +281,7 @@ function updateGrid() {
   // End the render pass and submit the command buffer
   pass.end();
   device.queue.submit([encoder.finish()]);
+  requestAnimationFrame(updateGrid);
 }
 
-// Schedule updateGrid() to run repeatedly
-setInterval(updateGrid, UPDATE_INTERVAL);
+requestAnimationFrame(updateGrid);
