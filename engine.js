@@ -12,6 +12,7 @@ let activeModel = null;
 let currentParams = {};
 let registry = {};
 let onModelSwitch = null;
+let pendingModelId = null;
 
 export async function init(canvas, modelArray, onSwitch) {
   if (!navigator.gpu) throw new Error("WebGPU not supported on this browser.");
@@ -100,15 +101,14 @@ export async function init(canvas, modelArray, onSwitch) {
 }
 
 export async function switchModel(modelId) {
-  activeModel = registry[modelId];
-  currentParams = Object.fromEntries(activeModel.params.map(p => [p.id, p.default]));
+  pendingModelId = modelId;
 
   if (!computePipelines[modelId]) {
     const requestedId = modelId;
-    const r = await fetch(activeModel.shaderUrl);
-    if (!r.ok) throw new Error(`Failed to load shader: ${activeModel.shaderUrl}`);
+    const r = await fetch(registry[modelId].shaderUrl);
+    if (!r.ok) throw new Error(`Failed to load shader: ${registry[modelId].shaderUrl}`);
     const code = await r.text();
-    if (activeModel.id !== requestedId) return; // superseded by a later switch
+    if (pendingModelId !== requestedId) return; // superseded by a later switch
     const module = device.createShaderModule({ code });
     computePipelines[modelId] = device.createComputePipeline({
       layout: pipelineLayout,
@@ -116,6 +116,9 @@ export async function switchModel(modelId) {
     });
   }
 
+  // All synchronous from here — safe to update state atomically
+  activeModel = registry[modelId];
+  currentParams = Object.fromEntries(activeModel.params.map(p => [p.id, p.default]));
   step = 0;
   _writeUniforms();
   _resetBuffers();
@@ -174,6 +177,9 @@ function _rebuildBindGroups() {
 }
 
 function _loop() {
+  requestAnimationFrame(_loop);
+  if (!activeModel || !computePipelines[activeModel.id]) return;
+
   const encoder = device.createCommandEncoder();
   const workgroupCount = Math.ceil(GRID_SIZE / WORKGROUP_SIZE);
   const stepsPerFrame = activeModel.stepsPerFrame ?? 4;
@@ -202,5 +208,4 @@ function _loop() {
   renderPass.end();
 
   device.queue.submit([encoder.finish()]);
-  requestAnimationFrame(_loop);
 }
