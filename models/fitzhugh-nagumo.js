@@ -15,15 +15,13 @@ export default {
     { id: "I",   label: "I (stimulus)",   min: 0.0,  max: 0.5,  step: 0.005,  default: 0.0  },
   ],
   seed(grid, size, _params) {
-    const cx = size / 2, cy = size / 2, r = size / 8;
+    // Random initial state spanning the full dynamic range triggers
+    // immediate self-organization into spiral waves and travelling pulses
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const i = (y * size + x) * 2;
-        grid[i]     = 0.0; // w
-        grid[i + 1] = 0.0; // v
-        if ((x - cx) ** 2 + (y - cy) ** 2 < r * r) {
-          grid[i + 1] = (Math.random() - 0.5) * 0.1; // v noise in circle
-        }
+        grid[i]     = (Math.random() - 0.5) * 1.2;  // w ∈ [-0.6, 0.6]
+        grid[i + 1] = (Math.random() - 0.5) * 3.0;  // v ∈ [-1.5, 1.5]
       }
     }
   },

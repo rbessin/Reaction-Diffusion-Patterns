@@ -6,8 +6,8 @@ export default {
   Db: 8.0,   // Dv
   dt: 0.02,
   stepsPerFrame: 10,
-  displayMin: 0.0,
-  displayMax: 5.0,
+  displayMin: 0.5,
+  displayMax: 4.0,
   params: [
     { id: "A", label: "A", min: 0.5, max: 3.0, step: 0.05, default: 2.0 },
     { id: "B", label: "B", min: 1.0, max: 6.0, step: 0.05, default: 4.5 },

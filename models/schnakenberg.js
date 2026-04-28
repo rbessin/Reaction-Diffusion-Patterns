@@ -6,8 +6,8 @@ export default {
   Db: 40.0,   // Dv — large ratio drives Turing instability
   dt: 0.01,
   stepsPerFrame: 20,
-  displayMin: 0.0,
-  displayMax: 2.0,
+  displayMin: 0.3,
+  displayMax: 1.6,
   params: [
     { id: "a", label: "a", min: 0.05, max: 0.3, step: 0.005, default: 0.1 },
     { id: "b", label: "b", min: 0.4,  max: 1.2, step: 0.01,  default: 0.9 },
