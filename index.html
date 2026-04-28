@@ -1,5 +1,4 @@
 <!doctype html>
-
 <html>
   <head>
     <meta charset="utf-8" />
@@ -58,6 +57,17 @@
         width: 100%;
       }
 
+      select {
+        width: 100%;
+        padding: 0.4rem 0.6rem;
+        border: 1px solid #56627a;
+        border-radius: 0.5rem;
+        background: #1b2331;
+        color: inherit;
+        cursor: pointer;
+        font-size: 0.95rem;
+      }
+
       button {
         width: fit-content;
         padding: 0.55rem 0.85rem;
@@ -74,33 +84,12 @@
       <canvas width="512" height="512"></canvas>
       <section class="controls">
         <div class="control-row">
-          <label class="control-label" for="feed-rate">
-            <span>Feed Rate</span>
-            <span id="feed-rate-value">0.0367</span>
+          <label class="control-label" for="model-select">
+            <span>Model</span>
           </label>
-          <input
-            id="feed-rate"
-            type="range"
-            min="0.01"
-            max="0.09"
-            step="0.0005"
-            value="0.0367"
-          />
+          <select id="model-select"></select>
         </div>
-        <div class="control-row">
-          <label class="control-label" for="kill-rate">
-            <span>Kill Rate</span>
-            <span id="kill-rate-value">0.0649</span>
-          </label>
-          <input
-            id="kill-rate"
-            type="range"
-            min="0.03"
-            max="0.07"
-            step="0.0005"
-            value="0.0649"
-          />
-        </div>
+        <div id="params"></div>
         <button id="reset-pattern" type="button">Reset Pattern</button>
       </section>
     </main>
