@@ -1,12 +1,13 @@
 import * as engine from "./engine.js";
 import grayScott from "./models/gray-scott.js";
+import fitzhughNagumo from "./models/fitzhugh-nagumo.js";
 
 const canvas = document.querySelector("canvas");
 const modelSelect = document.querySelector("#model-select");
 const paramsContainer = document.querySelector("#params");
 const resetButton = document.querySelector("#reset-pattern");
 
-const models = [grayScott];
+const models = [grayScott, fitzhughNagumo];
 
 function buildParamControls(model) {
   paramsContainer.innerHTML = "";
