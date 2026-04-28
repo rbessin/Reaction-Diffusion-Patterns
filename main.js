@@ -40,7 +40,6 @@ for (const model of models) {
 
 modelSelect.addEventListener("change", (e) => {
   engine.switchModel(e.target.value);
-  modelSelect.value = e.target.value;
 });
 
 resetButton.addEventListener("click", () => engine.reset());

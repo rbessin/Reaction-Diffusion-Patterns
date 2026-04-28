@@ -28,6 +28,7 @@ export async function init(canvas, modelArray, onSwitch) {
   // Vertex buffer: two triangles forming a unit quad
   const vertices = new Float32Array([-1,-1, 1,-1, 1,1, -1,-1, 1,1, -1,1]);
   vertexBuffer = device.createBuffer({
+    label: "Quad vertices",
     size: vertices.byteLength,
     usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
   });
@@ -36,12 +37,13 @@ export async function init(canvas, modelArray, onSwitch) {
   // Double-buffered cell storage (512×512 cells × vec2f)
   const cellBufSize = GRID_SIZE * GRID_SIZE * 2 * Float32Array.BYTES_PER_ELEMENT;
   cellBuffers = [
-    device.createBuffer({ size: cellBufSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST }),
-    device.createBuffer({ size: cellBufSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST }),
+    device.createBuffer({ label: "Cell state A", size: cellBufSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST }),
+    device.createBuffer({ label: "Cell state B", size: cellBufSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST }),
   ];
 
   // Uniform buffer: 12 floats = 48 bytes
   uniformBuffer = device.createBuffer({
+    label: "Simulation uniforms",
     size: 12 * Float32Array.BYTES_PER_ELEMENT,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
@@ -102,7 +104,10 @@ export async function switchModel(modelId) {
   currentParams = Object.fromEntries(activeModel.params.map(p => [p.id, p.default]));
 
   if (!computePipelines[modelId]) {
-    const code = await fetch(activeModel.shaderUrl).then(r => r.text());
+    const r = await fetch(activeModel.shaderUrl);
+    if (!r.ok) throw new Error(`Failed to load shader: ${activeModel.shaderUrl}`);
+    const code = await r.text();
+    if (activeModel.id !== modelId) return; // superseded by a later switch
     const module = device.createShaderModule({ code });
     computePipelines[modelId] = device.createComputePipeline({
       layout: pipelineLayout,
@@ -125,8 +130,13 @@ export function updateParam(paramId, value) {
 export function reset() {
   step = 0;
   _resetBuffers();
+  _writeUniforms();
 }
 
+// Uniform buffer layout (12 floats = 48 bytes):
+// [0,1] grid x,y   [2] Da   [3] Db
+// [4-7] model params (p0-p3)
+// [8] displayMin   [9] displayMax   [10] dt   [11] padding
 function _writeUniforms() {
   const data = new Float32Array(12);
   data[0]  = GRID_SIZE;
@@ -151,6 +161,7 @@ function _resetBuffers() {
 function _rebuildBindGroups() {
   for (let i = 0; i < 2; i++) {
     bindGroups[i] = device.createBindGroup({
+      label: `Bind group ${i === 0 ? "A" : "B"}`,
       layout: bindGroupLayout,
       entries: [
         { binding: 0, resource: { buffer: uniformBuffer } },
