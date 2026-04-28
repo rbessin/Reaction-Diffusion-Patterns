@@ -1,11 +1,11 @@
 // Brusselator oscillating reaction model
 // Stored as vec2f(u, v) — v is the display variable (second component)
-// p0=A, p1=B  |  Da=Du=1.0, Db=Dv=8.0
+// p0=A, p1=B
 
 struct SimulationUniforms {
   grid: vec2f,
-  Du: f32,
-  Dv: f32,
+  Du: f32,  // engine slot 2 (Da)
+  Dv: f32,  // engine slot 3 (Db)
   A: f32,
   B: f32,
   p2: f32,
